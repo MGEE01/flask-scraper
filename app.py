@@ -1,9 +1,10 @@
 from flask import Flask, jsonify
 from scraper import scrape_prices, load_price
 from datetime import datetime
-from dotenv import load_dotenv
 import os
 import asyncio
+from dotenv import load_dotenv
+
 load_dotenv()
 app = Flask(__name__)
 SCRAPE_INTERVAL = 7200  # 2 hours
@@ -16,11 +17,33 @@ def get_price():
         asyncio.set_event_loop(loop)
         price = loop.run_until_complete(scrape_prices())
         loop.close()
+        if price is None:
+            return jsonify({'error': 'Failed to scrape price'}), 500
     return jsonify({
         'price': price,
         'timestamp': saved_time.isoformat() if saved_time else None
     })
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
+    from gunicorn.app.base import BaseApplication
+    
+    class StandaloneApplication(BaseApplication):
+        def __init__(self, app, options=None):
+            self.options = options or {}
+            self.application = app
+            super().__init__()
+        
+        def load_config(self):
+            config = {key: value for key, value in self.options.items()
+                      if key in self.cfg.settings and value is not None}
+            for key, value in config.items():
+                self.cfg.set(key.lower(), value)
+        
+        def load(self):
+            return self.application
+    
+    options = {
+        'bind': '%s:%s' % ('0.0.0.0', os.environ.get('PORT', '5000')),
+        'workers': 1,
+    }
+    StandaloneApplication(app, options).run()
