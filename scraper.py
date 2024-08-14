@@ -26,12 +26,14 @@ async def scrape_prices():
             average_price = statistics.mean(prices)
             
             save_price(average_price)
+            await context.close()
             await browser.close()
             
         return average_price
     except Exception as e:
         print(f"Error during scraping: {e}")
         return None
+
 
 def save_price(price):
     data = {
