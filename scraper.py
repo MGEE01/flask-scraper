@@ -14,7 +14,7 @@ SCRAPE_INTERVAL = 7200  # 2 hours
 async def scrape_prices():
     try:
         async with async_playwright() as p:
-            browser = await p.firefox.launch(headless=True)
+            browser = await p.chromium.launch(headless=True)
             context = await browser.new_context()
             page = await context.new_page()
             await page.goto(URL, timeout=120000, wait_until='networkidle')
