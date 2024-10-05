@@ -14,15 +14,21 @@ SCRAPE_INTERVAL = 7200  # 2 hours
 async def scrape_prices():
     try:
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
+            browser = await p.chromium.launch(headless=False)
             context = await browser.new_context()
             page = await context.new_page()
             await page.goto(URL, timeout=120000, wait_until='networkidle')
-            await page.click("button.ant-btn.css-7o12g0.ant-btn-primary.ant-btn-custom.ant-btn-custom-middle.ant-btn-custom-primary.bds-theme-component-light")
+            # await page.click("button.ant-btn.css-7o12g0.ant-btn-primary.ant-btn-custom.ant-btn-custom-middle.ant-btn-custom-primary.bds-theme-component-light")
+            modal = await page.wait_for_selector("div.ant-modal-content")
+            async with context.expect_page() as new_page_info:
+                await modal.click()
+            new_page = await new_page_info.value
+            await new_page.wait_for_load_state('networkidle')
+            await new_page.close()
             await page.wait_for_selector("span.price-amount", timeout=120000)
             
             price_elements = await page.query_selector_all("span.price-amount")
-            prices = [float((await element.inner_text()).split()[0].replace(',', '')) for element in price_elements[:10]]
+            prices = [float((await element.inner_text()).split()[0].replace(',', '')) for element in price_elements[2:10]]
             average_price = statistics.mean(prices)
             
             save_price(average_price)
